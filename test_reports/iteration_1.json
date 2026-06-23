@@ -1,0 +1,43 @@
+{
+  "summary": "E2E tested Ovosanti Delivery app. Backend: 10/10 pytest passing (create, list, get, upload-pdf, sign, download, validation cases). Frontend: full happy-path works (form -> PDF upload -> signature canvas -> sign confirm -> success -> history -> download signed PDF). Found 2 real issues: signature is NOT actually overlaid onto the PDF (regression vs spec), and the 'Made with Emergent' badge overlaps the bottom-nav Historial button on mobile.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/deliveries/{id}/sign", "issue": "Signature is NOT composited onto the PDF. Code at server.py L148-157 just copies pages into a new PdfWriter without drawing the signature PNG. Signed PDF is identical to the source PDF. Spec requires 'La firma se superpone al PDF usando pypdf'. Need to overlay the PNG (e.g. reportlab to build an overlay page + page.merge_page) on the last page.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/deliveries/{id}/sign", "issue": "Invalid signature_data_url (not starting with 'data:image') triggers a 500 via the broad except wrapper instead of the intended 400. Move the HTTPException 400 raise outside the try/except or re-raise HTTPException."},
+      {"endpoint": "POST /api/deliveries/{id}/upload-pdf", "issue": "content_type check uses '==' on file.content_type; some browsers send 'application/x-pdf' or empty. Consider also accepting by extension."},
+      {"endpoint": "All", "issue": "POST /deliveries returns 200 instead of 201 on resource creation (cosmetic)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Navigation (bottom tab) vs Emergent badge", "issue": "On 390x844 mobile viewport, '#emergent-badge' (x:196-374, y:788-828) intersects nav 'Historial' button (x:195-390, y:780-844). Real finger taps on Historial are intercepted by the badge. Add bottom padding (e.g. pb-12) on the nav inner container, raise z-index above the badge, or shift the badge position.", "selector": "[data-testid=\"nav-history\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NewDelivery / DeliveryHistory", "issues": ["Corporate green #1E8E3E and beige #E8B89B are correctly applied", "Mobile-first layout works well on 390px", "Logo, h-14 inputs/buttons render correctly"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_deliveries.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Implement real signature-over-PDF composition in /api/deliveries/{id}/sign using pypdf (build overlay PDF page with signature PNG via reportlab, then page.merge_page on the last page of the source). Currently the signed PDF is just a copy.",
+    "Fix nav/badge overlap: lift bottom nav above #emergent-badge (z-index) or add side padding so the right tab is not covered on small screens.",
+    "Re-raise HTTPException inside the try block of sign_delivery so 400 errors are not converted to 500."
+  ],
+  "critical_code_review_comments": [
+    "server.py sign_delivery copies pages without merging the uploaded signature - core feature missing.",
+    "Broad try/except in sign_delivery swallows intentional HTTPException(400) and remaps it to 500.",
+    "Global mutable storage_key variable is fine for single worker but will re-init per worker; acceptable.",
+    "Deprecated FastAPI @app.on_event('startup'/'shutdown') used - migrate to lifespan handlers (non-blocking).",
+    "Frontend NewDelivery.js handleNewDelivery sets delivery_datetime via toISOString().slice(0,16) which yields UTC, while the initial useEffect uses local time - inconsistent. Use a single helper."
+  ],
+  "updated_files": ["/app/backend/tests/test_deliveries.py", "/app/test_reports/iteration_1.json"],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "N/A - app has no login",
+  "seed_data_creation": "Created test deliveries via pytest and UI flow (TEST-001, TEST-NOPDF, ABC-999). All visible in /api/deliveries.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_deliveries.py covers: root, create, list, get, get-404, upload-pdf reject non-pdf, upload unknown, full upload+sign+download flow, sign-without-pdf, sign-invalid-format. After main agent fixes signature compositing, re-test: download the signed PDF and verify it is LARGER than the source PDF and that an image stream is present on the last page. Also retest bottom-nav overlap on 390x844.",
+  "rca of the issue": "Signature compositing: server.py L148-157 only iterates reader.pages and writes them as-is; signature_bytes are uploaded to storage but never merged. To fix: use reportlab to create an overlay PDF containing the signature PNG positioned at desired coords, open it with PdfReader, then call last_page.merge_page(overlay_page) before writer.add_page. Nav overlap: bottom nav has bottom:0 and emergent badge is absolutely positioned bottom-right; both occupy the same y range on small screens."
+}
