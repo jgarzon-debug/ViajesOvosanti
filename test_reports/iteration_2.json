@@ -1,0 +1,34 @@
+{
+  "summary": "FINAL E2E testing of Ovosanti Delivery app. Backend: 11/11 pytest passing. Signature compositing fix VERIFIED: downloaded signed PDF (4964B) is larger than source (1430B) and contains an image XObject on last page = signature truly merged into PDF. Full UI flow works end-to-end (form -> PDF upload -> signature canvas -> confirm -> success -> history -> download). REMAINING BUG: 'Made with Emergent' badge still overlaps the Historial nav button on mobile 390x844. The pr-48 + z-[9999] attempted fix did NOT work because the badge also has z-index:9999 and appears later in the DOM, so it wins the stacking order. Center click on Historial button (244,812) goes to the badge; only clicks on the left ~25% of the button (e.g. 129,812) navigate to /history.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Navigation (bottom tab) vs Emergent badge", "issue": "Badge (#emergent-badge) at (196..374, 788..828) intercepts taps on the right ~60% of the Historial button (99..390, 780..844). Both nav and badge have z-index 9999; document.elementFromPoint() at button center returns the badge's <P>. pr-48 only shifts the icon/text inside the button, button width is unchanged (flex-1). FIX SUGGESTIONS: (a) reduce nav-history flex-basis so it ends before x=196, e.g. wrap the right button in a container with max-width and right-margin > 200px, OR (b) shrink the inner container width on mobile (e.g. max-w-[180px]) so neither button sits under the badge, OR (c) reposition the badge (not always possible), OR (d) set nav z-index higher than badge AND make nav itself receive pointer events while the badge area is moved.", "selector": "[data-testid=\"nav-history\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Overall", "issues": ["Corporate green #1E8E3E and beige accents correctly applied", "Mobile-first 390x844 layout looks good", "Success screen, history cards, download button render cleanly"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_deliveries.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Fix nav/badge overlap on mobile. Suggested: reduce bottom-nav inner width (e.g. max-w-[200px] mx-auto with badge offset) OR change nav-history to not stretch full-flex, ending before x=196 on 390px viewport.",
+    "Optional: remove pr-48 - it does nothing functional for the click area since the button is flex-1; only shifts visual contents."
+  ],
+  "critical_code_review_comments": [
+    "server.py still uses deprecated @app.on_event('startup'/'shutdown') - migrate to FastAPI lifespan handlers (non-blocking).",
+    "Navigation.js: pr-48 on a flex-1 button does not shrink the button; it only moves the icon/text to the left within the same hit area. The badge still overlays the right half. Restructure with a sibling spacer or max-width container.",
+    "server.py global 'storage_key' variable is acceptable for single worker; if scaled, move to a cached dependency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "90%"},
+  "test_credentials": "N/A - app has no login",
+  "seed_data_creation": "Created additional signed delivery (XYZ-789, Juan Perez E2E, Maria Lopez E2E) via UI. Total now 14 deliveries (6 signed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend signature compositing is fully working (verified by image XObject inspection on downloaded PDF, /tmp/downloaded_signed.pdf 4964B vs source 1430B). The ONLY outstanding issue is badge-vs-nav overlap. To verify a fix: set viewport 390x844, run document.elementFromPoint(244, 812) and elementFromPoint(rect.x+rect.width/2, rect.y+rect.height/2) - both should return the nav-history button or its child, NOT the emergent badge. Then click center of Historial and assert url contains /history.",
+  "rca_of_the_issue": "Badge overlap RCA: #emergent-badge has style 'z-index: 9999'. Navigation nav element also has z-[9999]. When two stacking-context siblings share the same z-index, the LATER one in DOM wins. Since #emergent-badge is appended after the React root nav, it sits on top. The pr-48 fix only changes the padding inside the flex-1 button, which still occupies the full right half (x:99..390). Real fix: reduce nav-history button width so it ends before x=196, e.g. give the inner flex container max-w-[160px] and align it to the left, or split into two buttons where the right one has explicit width < ~50px on mobile."
+}

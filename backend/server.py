@@ -14,6 +14,9 @@ import base64
 from pypdf import PdfReader, PdfWriter
 from io import BytesIO
 from PIL import Image
+from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import ImageReader
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -94,7 +97,7 @@ class SignatureData(BaseModel):
 async def root():
     return {"message": "Ovosanti Delivery API"}
 
-@api_router.post("/deliveries", response_model=Delivery)
+@api_router.post("/deliveries", response_model=Delivery, status_code=201)
 async def create_delivery(input: DeliveryCreate):
     delivery_obj = Delivery(**input.model_dump())
     doc = delivery_obj.model_dump()
@@ -103,7 +106,7 @@ async def create_delivery(input: DeliveryCreate):
 
 @api_router.post("/deliveries/{delivery_id}/upload-pdf")
 async def upload_pdf(delivery_id: str, file: UploadFile = File(...)):
-    if not file.content_type == "application/pdf":
+    if file.content_type not in ["application/pdf", "application/x-pdf"] and not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Solo se permiten archivos PDF")
     
     delivery = await db.deliveries.find_one({"id": delivery_id}, {"_id": 0})
@@ -132,12 +135,12 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
     if not delivery.get("pdf_path"):
         raise HTTPException(status_code=400, detail="No hay PDF cargado para esta entrega")
     
+    signature_data_url = signature.signature_data_url
+    if not signature_data_url.startswith("data:image"):
+        raise HTTPException(status_code=400, detail="Formato de firma inválido")
+    
     try:
         pdf_data, _ = get_object(delivery["pdf_path"])
-        
-        signature_data_url = signature.signature_data_url
-        if not signature_data_url.startswith("data:image"):
-            raise HTTPException(status_code=400, detail="Formato de firma inválido")
         
         signature_base64 = signature_data_url.split(",")[1]
         signature_bytes = base64.b64decode(signature_base64)
@@ -148,7 +151,43 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
         reader = PdfReader(BytesIO(pdf_data))
         writer = PdfWriter()
         
-        for page in reader.pages:
+        num_pages = len(reader.pages)
+        
+        for i, page in enumerate(reader.pages):
+            if i == num_pages - 1:
+                page_width = float(page.mediabox.width)
+                page_height = float(page.mediabox.height)
+                
+                signature_img = Image.open(BytesIO(signature_bytes))
+                img_width, img_height = signature_img.size
+                
+                max_sig_width = page_width * 0.3
+                scale = min(max_sig_width / img_width, 150 / img_height)
+                sig_width = img_width * scale
+                sig_height = img_height * scale
+                
+                x_position = page_width - sig_width - 50
+                y_position = 50
+                
+                overlay_buffer = BytesIO()
+                c = pdf_canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+                c.drawImage(
+                    ImageReader(BytesIO(signature_bytes)),
+                    x_position,
+                    y_position,
+                    width=sig_width,
+                    height=sig_height,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+                c.save()
+                overlay_buffer.seek(0)
+                
+                overlay_pdf = PdfReader(overlay_buffer)
+                overlay_page = overlay_pdf.pages[0]
+                
+                page.merge_page(overlay_page)
+            
             writer.add_page(page)
         
         output_pdf = BytesIO()
@@ -174,6 +213,8 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
             "message": "Entrega firmada exitosamente"
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error signing PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al firmar el PDF: {str(e)}")
