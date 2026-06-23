@@ -1,0 +1,79 @@
+{
+  "project_context": {
+    "app_type": "mobile_web_app",
+    "domain": "Logistics & Delivery",
+    "theme": "Light",
+    "archetype": "Archetype 1 (Organic & Earthy) mixed with Functional Tech",
+    "description": "Mobile web app for delivery drivers to upload PDF remissions, capture delivery data (vehicle, driver, time, receiver), and sign via touch canvas. No login required."
+  },
+  "colors": {
+    "primary": "#1E8E3E",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#E8B89B",
+    "secondary_foreground": "#1A2E20",
+    "background": "#FDFBF7",
+    "surface": "#FFFFFF",
+    "border": "#E2E8F0",
+    "text": {
+      "main": "#142518",
+      "muted": "#4B5563"
+    },
+    "success": "#1E8E3E",
+    "error": "#DC2626"
+  },
+  "typography": {
+    "font_families": {
+      "heading": "Work Sans, sans-serif",
+      "body": "IBM Plex Sans, sans-serif"
+    },
+    "hierarchy": {
+      "h1": "text-3xl font-bold tracking-tight text-[#142518]",
+      "h2": "text-2xl font-semibold tracking-tight text-[#142518]",
+      "h3": "text-xl font-medium text-[#142518]",
+      "body_large": "text-lg text-[#142518]",
+      "body": "text-base leading-relaxed text-[#142518]",
+      "labels": "text-xs font-bold tracking-[0.1em] uppercase text-[#4B5563]"
+    }
+  },
+  "layout_and_spacing": {
+    "strategy": "Mobile-first, single column. High tactile density.",
+    "touch_targets": "Minimum 56px height (h-14) for all interactive elements to accommodate driver usage on-the-go.",
+    "container": "w-full max-w-md mx-auto min-h-screen bg-[#FDFBF7] flex flex-col shadow-2xl shadow-black/5",
+    "spacing_scale": "Use p-4, p-6, and gap-6 generously to avoid misclicks.",
+    "borders": "rounded-xl for cards, inputs, and buttons. 2px borders on active/focus states for high visibility."
+  },
+  "components": {
+    "buttons": "Large, block-level buttons. Primary uses #1E8E3E. Secondary uses #E8B89B. Avoid ghost buttons for critical actions.",
+    "inputs": "h-14, rounded-xl, bg-white border border-[#E2E8F0]. Focus state must have ring-2 ring-[#1E8E3E]. Text must be 16px to prevent iOS auto-zoom.",
+    "signature_canvas": "Must be inline or in a full-height view. NEVER in a popup/dialog (per user request). Ensure touch-action: none to prevent page scrolling while signing. Provide a clear 'Clear/Erase' button.",
+    "navigation": "Bottom tab bar or sticky top header. No hamburger menus. Keep it flat.",
+    "cards": "Surface white, rounded-xl, subtle shadow-sm, border border-black/5."
+  },
+  "motion": {
+    "interactions": "Fast, functional micro-interactions. Use active:scale-[0.98] for button press feedback."
+  },
+  "accessibility_and_testing": {
+    "testing_attributes": "CRITICAL: All interactive and key informational elements MUST include a 'data-testid' attribute in kebab-case (e.g., data-testid='submit-delivery-button').",
+    "contrast": "Ensure text over #E8B89B has minimum 4.5:1 contrast."
+  },
+  "media": {
+    "brand_logo": {
+      "url": "https://customer-assets.emergentagent.com/job_ovosanti-delivery/artifacts/e989slhn_logo%20ovosanti%20%2812%29.png",
+      "description": "Ovosanti Company Logo"
+    },
+    "history_empty_state": {
+      "url": "https://images.unsplash.com/photo-1656543802898-41c8c46683a7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwxfHxjYXJkYm9hcmQlMjBib3glMjBwYWNrYWdlfGVufDB8fHx8MTc4MjI0MjQ3NHww&ixlib=rb-4.1.0&q=85",
+      "description": "Clean cardboard box for empty delivery history state"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Develop using .js and .jsx files (No TypeScript).",
+    "Implement a strictly mobile-first view (max-w-md mx-auto is acceptable for desktop rendering).",
+    "Do NOT use any modal dialogs (Dialog, Alert, Modal) that obstruct the screen. The user explicitly requested 'que no sean obstruidos por cuadros de dialogo'. Use inline components or full-page routing.",
+    "The core flow involves: 1. Uploading a PDF. 2. Filling delivery data (Vehicle plate, Driver name, Date/Time, Receiver name). 3. Signing via a touch-friendly canvas. 4. Generating/Processing the signed PDF for download.",
+    "For the signature canvas, ensure the canvas block does not trigger native browser scroll when drawing (touch-action: none).",
+    "Add 'data-testid' attributes to all inputs, buttons, and significant UI wrappers.",
+    "Use lucide-react for iconography.",
+    "Apply Ovosanti corporate colors precisely as defined."
+  ]
+}
