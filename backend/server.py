@@ -166,24 +166,25 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
                 box_x = (page_width - box_width) / 2
                 box_y = 40
                 
+                header_height = 25
                 c.setFillColorRGB(0.118, 0.557, 0.243)
-                c.rect(box_x, box_y + box_height - 35, box_width, 35, fill=True, stroke=False)
+                c.rect(box_x, box_y + box_height - header_height, box_width, header_height, fill=True, stroke=False)
                 
                 c.setFillColorRGB(1, 1, 1)
-                c.setFont("Helvetica-Bold", 14)
-                c.drawCentredString(box_x + box_width / 2, box_y + box_height - 18, "RECIBIDO Y FIRMADO")
+                c.setFont("Helvetica-Bold", 12)
+                c.drawCentredString(box_x + box_width / 2, box_y + box_height - 15, "RECIBIDO Y FIRMADO")
                 
                 signature_img = Image.open(BytesIO(signature_bytes))
                 img_width, img_height = signature_img.size
                 
                 max_sig_width = box_width * 0.85
-                max_sig_height = 55
+                max_sig_height = 50
                 scale = min(max_sig_width / img_width, max_sig_height / img_height)
                 sig_width = img_width * scale
                 sig_height = img_height * scale
                 
                 sig_x = box_x + (box_width - sig_width) / 2
-                sig_y = box_y + 68
+                sig_y = box_y + 75
                 
                 c.drawImage(
                     ImageReader(BytesIO(signature_bytes)),
@@ -197,16 +198,16 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
                 
                 c.setStrokeColorRGB(0.118, 0.557, 0.243)
                 c.setLineWidth(1.5)
-                c.line(box_x + 15, box_y + 60, box_x + box_width - 15, box_y + 60)
+                c.line(box_x + 15, box_y + 65, box_x + box_width - 15, box_y + 65)
                 
                 c.setFillColorRGB(0.118, 0.557, 0.243)
                 c.setFont("Helvetica-Bold", 11)
-                c.drawCentredString(box_x + box_width / 2, box_y + 42, delivery.get("receiver_name", "").upper())
+                c.drawCentredString(box_x + box_width / 2, box_y + 45, delivery.get("receiver_name", "").upper())
                 
                 c.setFont("Helvetica", 8)
                 now = datetime.now(timezone.utc)
                 formatted_date = now.strftime("%d/%m/%Y, %I:%M:%S %p")
-                c.drawCentredString(box_x + box_width / 2, box_y + 28, formatted_date)
+                c.drawCentredString(box_x + box_width / 2, box_y + 30, formatted_date)
                 
                 c.save()
                 overlay_buffer.seek(0)
