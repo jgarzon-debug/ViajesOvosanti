@@ -158,28 +158,56 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
                 page_width = float(page.mediabox.width)
                 page_height = float(page.mediabox.height)
                 
+                overlay_buffer = BytesIO()
+                c = pdf_canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
+                
+                box_width = page_width * 0.9
+                box_height = 200
+                box_x = (page_width - box_width) / 2
+                box_y = (page_height - box_height) / 2
+                
+                c.setFillColorRGB(0.118, 0.557, 0.243)
+                c.rect(box_x, box_y + box_height - 40, box_width, 40, fill=True, stroke=False)
+                
+                c.setFillColorRGB(1, 1, 1)
+                c.setFont("Helvetica-Bold", 18)
+                c.drawCentredString(page_width / 2, box_y + box_height - 22, "RECIBIDO Y FIRMADO")
+                
                 signature_img = Image.open(BytesIO(signature_bytes))
                 img_width, img_height = signature_img.size
                 
-                max_sig_width = page_width * 0.3
-                scale = min(max_sig_width / img_width, 150 / img_height)
+                max_sig_width = box_width * 0.8
+                max_sig_height = 80
+                scale = min(max_sig_width / img_width, max_sig_height / img_height)
                 sig_width = img_width * scale
                 sig_height = img_height * scale
                 
-                x_position = page_width - sig_width - 50
-                y_position = 50
+                sig_x = (page_width - sig_width) / 2
+                sig_y = box_y + 80
                 
-                overlay_buffer = BytesIO()
-                c = pdf_canvas.Canvas(overlay_buffer, pagesize=(page_width, page_height))
                 c.drawImage(
                     ImageReader(BytesIO(signature_bytes)),
-                    x_position,
-                    y_position,
+                    sig_x,
+                    sig_y,
                     width=sig_width,
                     height=sig_height,
                     preserveAspectRatio=True,
                     mask='auto'
                 )
+                
+                c.setStrokeColorRGB(0.118, 0.557, 0.243)
+                c.setLineWidth(2)
+                c.line(box_x + 20, box_y + 70, box_x + box_width - 20, box_y + 70)
+                
+                c.setFillColorRGB(0.118, 0.557, 0.243)
+                c.setFont("Helvetica-Bold", 14)
+                c.drawCentredString(page_width / 2, box_y + 48, delivery.get("receiver_name", "").upper())
+                
+                c.setFont("Helvetica", 10)
+                now = datetime.now(timezone.utc)
+                formatted_date = now.strftime("%d/%m/%Y, %I:%M:%S %p")
+                c.drawCentredString(page_width / 2, box_y + 28, formatted_date)
+                
                 c.save()
                 overlay_buffer.seek(0)
                 
@@ -218,6 +246,33 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
     except Exception as e:
         logger.error(f"Error signing PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al firmar el PDF: {str(e)}")
+
+@api_router.get("/deliveries/stats")
+async def get_delivery_stats():
+    try:
+        all_deliveries = await db.deliveries.find({}, {"_id": 0}).to_list(1000)
+        
+        total = len(all_deliveries)
+        signed = len([d for d in all_deliveries if d.get("is_signed", False)])
+        pending = total - signed
+        
+        from collections import Counter
+        driver_counts = Counter(d.get("driver_name", "Unknown") for d in all_deliveries)
+        vehicle_counts = Counter(d.get("vehicle_plate", "Unknown") for d in all_deliveries)
+        
+        by_driver = [{"driver_name": name, "count": count} for name, count in driver_counts.most_common(10)]
+        by_vehicle = [{"vehicle_plate": plate, "count": count} for plate, count in vehicle_counts.most_common(10)]
+        
+        return {
+            "total": total,
+            "signed": signed,
+            "pending": pending,
+            "byDriver": by_driver,
+            "byVehicle": by_vehicle
+        }
+    except Exception as e:
+        logger.error(f"Error getting stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al obtener estadísticas: {str(e)}")
 
 @api_router.get("/deliveries", response_model=List[Delivery])
 async def get_deliveries():

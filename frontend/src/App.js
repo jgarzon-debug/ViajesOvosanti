@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import NewDelivery from "@/pages/NewDelivery";
 import DeliveryHistory from "@/pages/DeliveryHistory";
+import Dashboard from "@/pages/Dashboard";
 import Navigation from "@/components/Navigation";
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
           <Routes>
             <Route path="/" element={<NewDelivery />} />
             <Route path="/history" element={<DeliveryHistory />} />
+            <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
           <Navigation />
         </div>
