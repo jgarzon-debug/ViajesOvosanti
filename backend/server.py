@@ -300,6 +300,36 @@ async def delete_delivery(delivery_id: str):
     
     return {"success": True, "message": "Entrega eliminada exitosamente"}
 
+@api_router.get("/deliveries/{delivery_id}/download-pdf")
+async def download_delivery_pdf(delivery_id: str):
+    delivery = await db.deliveries.find_one({"id": delivery_id}, {"_id": 0})
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+    
+    if not delivery.get("signed_pdf_path"):
+        raise HTTPException(status_code=404, detail="PDF firmado no encontrado")
+    
+    try:
+        pdf_data, _ = get_object(delivery["signed_pdf_path"])
+        
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        filename = f"OVOSANTI-{delivery['vehicle_plate']}-{date_str}.pdf"
+        
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/pdf",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Content-Type-Options": "nosniff"
+        }
+        
+        return Response(content=pdf_data, media_type="application/pdf", headers=headers)
+    except Exception as e:
+        logger.error(f"Error downloading delivery PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al descargar el PDF")
+
+
 
 @api_router.get("/files/{path:path}")
 async def download_file(path: str):

@@ -85,42 +85,37 @@ export default function DeliveryHistory() {
 
     const filename = `OVOSANTI-${delivery.vehicle_plate}-${new Date().toISOString().slice(0,10)}.pdf`;
     
-    // Para Android - usar enlace directo con headers del servidor
+    // Para Android - usar endpoint específico que retorna nombre correcto
     if (/Android/i.test(navigator.userAgent)) {
       try {
-        const loadingToast = toast.loading("Preparando descarga...");
+        const loadingToast = toast.loading("Iniciando descarga...");
         
-        // Crear enlace directo a la API que retorna headers de descarga
-        const downloadUrl = `${API_URL}/files/${delivery.signed_pdf_path}`;
+        // Usar endpoint específico de descarga que retorna el nombre correcto
+        const downloadUrl = `${API_URL}/deliveries/${delivery.id}/download-pdf`;
         
-        // Crear un enlace temporal
+        // Crear enlace temporal
         const link = document.createElement("a");
         link.href = downloadUrl;
         link.download = filename;
         link.style.display = 'none';
-        link.setAttribute('target', '_blank');
         
         document.body.appendChild(link);
+        link.click();
         
-        // Click después de un pequeño delay
+        // Pequeño delay antes de remover
         setTimeout(() => {
-          link.click();
-          
-          toast.dismiss(loadingToast);
-          toast.success("Descarga iniciada. Revisa notificaciones de Android", {
-            duration: 5000
-          });
-          
-          // Cleanup
-          setTimeout(() => {
-            document.body.removeChild(link);
-          }, 100);
+          document.body.removeChild(link);
         }, 100);
+        
+        toast.dismiss(loadingToast);
+        toast.success("PDF descargado. Revisa tus notificaciones", {
+          duration: 5000
+        });
         
         return;
       } catch (error) {
         console.error("Android download error:", error);
-        toast.error("Error al iniciar descarga");
+        toast.error("Error al descargar PDF");
         return;
       }
     }
@@ -130,7 +125,7 @@ export default function DeliveryHistory() {
       try {
         const loadingToast = toast.loading("Preparando descarga...");
         
-        const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
+        const response = await axios.get(`${API_URL}/deliveries/${delivery.id}/download-pdf`, {
           responseType: "blob"
         });
         
@@ -164,7 +159,7 @@ export default function DeliveryHistory() {
     try {
       const loadingToast = toast.loading("Preparando descarga...");
       
-      const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
+      const response = await axios.get(`${API_URL}/deliveries/${delivery.id}/download-pdf`, {
         responseType: "blob"
       });
       
