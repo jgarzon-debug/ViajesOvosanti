@@ -3,9 +3,7 @@ import axios from "axios";
 import SignatureCanvas from "react-signature-canvas";
 import { Package, FileText, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API_URL } from "@/config";
 
 export default function NewDelivery() {
   const [step, setStep] = useState(1);
@@ -60,13 +58,13 @@ export default function NewDelivery() {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/deliveries`, formData);
+      const response = await axios.post(`${API_URL}/deliveries`, formData);
       const newDeliveryId = response.data.id;
       setDeliveryId(newDeliveryId);
 
       const formDataUpload = new FormData();
       formDataUpload.append("file", pdfFile);
-      await axios.post(`${API}/deliveries/${newDeliveryId}/upload-pdf`, formDataUpload, {
+      await axios.post(`${API_URL}/deliveries/${newDeliveryId}/upload-pdf`, formDataUpload, {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
@@ -94,7 +92,7 @@ export default function NewDelivery() {
     setLoading(true);
     try {
       const signatureDataURL = sigCanvas.current.toDataURL();
-      await axios.post(`${API}/deliveries/${deliveryId}/sign`, {
+      await axios.post(`${API_URL}/deliveries/${deliveryId}/sign`, {
         signature_data_url: signatureDataURL
       });
 

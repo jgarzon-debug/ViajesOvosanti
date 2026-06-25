@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { BarChart3, Package, CheckCircle, Clock, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API_URL } from "@/config";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -23,7 +21,7 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API}/deliveries/stats`);
+      const response = await axios.get(`${API_URL}/deliveries/stats`);
       setStats(response.data);
     } catch (error) {
       console.error("Error:", error);

@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { ClipboardList, CheckCircle, Clock, Download, Filter, X } from "lucide-react";
 import { toast } from "sonner";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { API_URL } from "@/config";
 
 export default function DeliveryHistory() {
   const [deliveries, setDeliveries] = useState([]);
@@ -28,7 +26,7 @@ export default function DeliveryHistory() {
 
   const fetchDeliveries = async () => {
     try {
-      const response = await axios.get(`${API}/deliveries`);
+      const response = await axios.get(`${API_URL}/deliveries`);
       setDeliveries(response.data);
     } catch (error) {
       console.error("Error:", error);
@@ -84,7 +82,7 @@ export default function DeliveryHistory() {
     }
 
     try {
-      const response = await axios.get(`${API}/files/${delivery.signed_pdf_path}`, {
+      const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
         responseType: "blob"
       });
       
