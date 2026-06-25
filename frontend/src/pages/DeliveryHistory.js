@@ -83,8 +83,84 @@ export default function DeliveryHistory() {
       return;
     }
 
-    let blobUrl = null;
+    const filename = `OVOSANTI-${delivery.vehicle_plate}-${new Date().toISOString().slice(0,10)}.pdf`;
     
+    // Para Android - usar enlace directo con headers del servidor
+    if (/Android/i.test(navigator.userAgent)) {
+      try {
+        const loadingToast = toast.loading("Preparando descarga...");
+        
+        // Crear enlace directo a la API que retorna headers de descarga
+        const downloadUrl = `${API_URL}/files/${delivery.signed_pdf_path}`;
+        
+        // Crear un enlace temporal
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        link.setAttribute('target', '_blank');
+        
+        document.body.appendChild(link);
+        
+        // Click después de un pequeño delay
+        setTimeout(() => {
+          link.click();
+          
+          toast.dismiss(loadingToast);
+          toast.success("Descarga iniciada. Revisa notificaciones de Android", {
+            duration: 5000
+          });
+          
+          // Cleanup
+          setTimeout(() => {
+            document.body.removeChild(link);
+          }, 100);
+        }, 100);
+        
+        return;
+      } catch (error) {
+        console.error("Android download error:", error);
+        toast.error("Error al iniciar descarga");
+        return;
+      }
+    }
+    
+    // Para iOS Safari - abrir en nueva pestaña
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      try {
+        const loadingToast = toast.loading("Preparando descarga...");
+        
+        const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
+          responseType: "blob"
+        });
+        
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const newWindow = window.open(blobUrl, '_blank');
+        if (!newWindow) {
+          toast.dismiss(loadingToast);
+          toast.error("Permite ventanas emergentes para descargar");
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        
+        toast.dismiss(loadingToast);
+        toast.success("PDF abierto. Usa 'Compartir' para guardar");
+        
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 3000);
+        
+        return;
+      } catch (error) {
+        console.error("iOS download error:", error);
+        toast.error("Error al abrir PDF");
+        return;
+      }
+    }
+    
+    // Para navegadores de escritorio
     try {
       const loadingToast = toast.loading("Preparando descarga...");
       
@@ -93,103 +169,25 @@ export default function DeliveryHistory() {
       });
       
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      const filename = `OVOSANTI-${delivery.vehicle_plate}-${new Date().toISOString().slice(0,10)}.pdf`;
+      const blobUrl = URL.createObjectURL(blob);
       
-      // Para iOS Safari - abrir en nueva pestaña
-      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        blobUrl = URL.createObjectURL(blob);
-        const newWindow = window.open(blobUrl, '_blank');
-        if (!newWindow) {
-          toast.dismiss(loadingToast);
-          toast.error("Permite ventanas emergentes para descargar");
-          if (blobUrl) URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        toast.dismiss(loadingToast);
-        toast.success("PDF abierto. Usa 'Compartir' para guardar");
-        
-        // Cleanup después de que iOS haya abierto el PDF
-        setTimeout(() => {
-          if (blobUrl) URL.revokeObjectURL(blobUrl);
-        }, 3000);
-        return;
-      }
+      const link = document.createElement("a");
+      link.style.display = 'none';
+      link.href = blobUrl;
+      link.download = filename;
       
-      // Para Android - método más robusto
-      if (/Android/i.test(navigator.userAgent)) {
-        try {
-          blobUrl = window.URL.createObjectURL(blob);
-          
-          const link = document.createElement("a");
-          link.href = blobUrl;
-          link.download = filename;
-          link.setAttribute('type', 'application/pdf');
-          link.setAttribute('target', '_blank');
-          link.style.display = 'none';
-          
-          document.body.appendChild(link);
-          
-          // Trigger click con delay para Android
-          setTimeout(() => {
-            link.click();
-            
-            toast.dismiss(loadingToast);
-            toast.success("Descargando... Revisa tu carpeta Descargas", {
-              duration: 4000
-            });
-            
-            // Cleanup después de un tiempo prudencial
-            setTimeout(() => {
-              try {
-                document.body.removeChild(link);
-                if (blobUrl) window.URL.revokeObjectURL(blobUrl);
-              } catch (cleanupError) {
-                console.warn("Cleanup error:", cleanupError);
-              }
-            }, 250);
-          }, 50);
-          
-          return;
-        } catch (androidError) {
-          console.error("Android download error:", androidError);
-          if (blobUrl) URL.revokeObjectURL(blobUrl);
-          toast.dismiss(loadingToast);
-        }
-      }
+      document.body.appendChild(link);
+      link.click();
       
-      // Fallback para navegadores de escritorio y otros
-      blobUrl = window.URL.createObjectURL(blob);
-      
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-        // Para IE/Edge antiguo
-        window.navigator.msSaveOrOpenBlob(blob, filename);
-      } else {
-        // Método estándar para Chrome, Firefox, etc.
-        const link = document.createElement("a");
-        link.style.display = 'none';
-        link.href = blobUrl;
-        link.download = filename;
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(link);
-          if (blobUrl) window.URL.revokeObjectURL(blobUrl);
-        }, 100);
-      }
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
       
       toast.dismiss(loadingToast);
-      toast.success("PDF descargado en carpeta Descargas");
+      toast.success("PDF descargado exitosamente");
     } catch (error) {
-      console.error("Error:", error);
-      if (blobUrl) {
-        try {
-          URL.revokeObjectURL(blobUrl);
-        } catch (e) {
-          console.warn("Failed to revoke blob URL:", e);
-        }
-      }
+      console.error("Download error:", error);
       toast.error("Error al descargar el PDF");
     }
   };
@@ -453,13 +451,10 @@ export default function DeliveryHistory() {
                 type="password"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
-                placeholder="Contraseña"
+                placeholder="Contraseña de seguridad"
                 className="w-full h-12 px-4 rounded-xl bg-white border border-[#E2E8F0] focus:outline-none focus:ring-2 focus:ring-red-500 text-[#142518]"
                 data-testid="delete-password-input"
               />
-              <p className="text-xs text-[#4B5563] mt-2">
-                Contraseña: OVOSANTI2026
-              </p>
             </div>
 
             <div className="flex gap-3">

@@ -305,7 +305,18 @@ async def delete_delivery(delivery_id: str):
 async def download_file(path: str):
     try:
         data, content_type = get_object(path)
-        return Response(content=data, media_type=content_type)
+        
+        filename = path.split("/")[-1]
+        
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/pdf",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+        
+        return Response(content=data, media_type="application/pdf", headers=headers)
     except Exception as e:
         logger.error(f"Error downloading file: {str(e)}")
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
