@@ -84,7 +84,7 @@ export default function DeliveryHistory() {
     }
 
     try {
-      toast.loading("Preparando descarga...");
+      const loadingToast = toast.loading("Preparando descarga...");
       
       const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
         responseType: "blob"
@@ -93,15 +93,67 @@ export default function DeliveryHistory() {
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const filename = `OVOSANTI-${delivery.vehicle_plate}-${new Date().toISOString().slice(0,10)}.pdf`;
       
+      // Para iOS Safari - abrir en nueva pestaña
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        const fileURL = URL.createObjectURL(blob);
+        const newWindow = window.open(fileURL, '_blank');
+        if (!newWindow) {
+          toast.dismiss(loadingToast);
+          toast.error("Permite ventanas emergentes para descargar");
+          return;
+        }
+        toast.dismiss(loadingToast);
+        toast.success("PDF abierto. Usa 'Compartir' para guardar");
+        return;
+      }
+      
+      // Para Android - método más robusto
+      if (/Android/i.test(navigator.userAgent)) {
+        try {
+          // Crear un enlace temporal con atributos específicos para Android
+          const link = document.createElement("a");
+          const url = window.URL.createObjectURL(blob);
+          
+          link.href = url;
+          link.download = filename;
+          link.setAttribute('type', 'application/pdf');
+          link.setAttribute('target', '_blank');
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          
+          // Trigger click con un pequeño delay para Android
+          setTimeout(() => {
+            link.click();
+            
+            // Cleanup después de un tiempo prudencial
+            setTimeout(() => {
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+            }, 250);
+          }, 50);
+          
+          toast.dismiss(loadingToast);
+          toast.success("Descargando... Revisa tu carpeta Descargas", {
+            duration: 4000
+          });
+          return;
+        } catch (androidError) {
+          console.error("Android download error:", androidError);
+        }
+      }
+      
+      // Fallback para navegadores de escritorio y otros
       if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        // Para IE/Edge antiguo
         window.navigator.msSaveOrOpenBlob(blob, filename);
       } else {
+        // Método estándar para Chrome, Firefox, etc.
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.style.display = 'none';
         link.href = url;
         link.download = filename;
-        link.target = '_blank';
         
         document.body.appendChild(link);
         link.click();
@@ -112,11 +164,10 @@ export default function DeliveryHistory() {
         }, 100);
       }
       
-      toast.dismiss();
-      toast.success("PDF descargado exitosamente en Descargas");
+      toast.dismiss(loadingToast);
+      toast.success("PDF descargado en carpeta Descargas");
     } catch (error) {
       console.error("Error:", error);
-      toast.dismiss();
       toast.error("Error al descargar el PDF");
     }
   };
