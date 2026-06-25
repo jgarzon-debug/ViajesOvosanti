@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { ClipboardList, CheckCircle, Clock, Download, Filter, X } from "lucide-react";
+import { ClipboardList, CheckCircle, Clock, Download, Filter, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { API_URL } from "@/config";
 
@@ -15,6 +15,8 @@ export default function DeliveryHistory() {
     dateTo: ""
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ show: false, deliveryId: null });
+  const [deletePassword, setDeletePassword] = useState("");
 
   useEffect(() => {
     fetchDeliveries();
@@ -82,24 +84,72 @@ export default function DeliveryHistory() {
     }
 
     try {
+      toast.loading("Preparando descarga...");
+      
       const response = await axios.get(`${API_URL}/files/${delivery.signed_pdf_path}`, {
         responseType: "blob"
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `entrega-${delivery.vehicle_plate}-${delivery.id.slice(0, 8)}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const filename = `OVOSANTI-${delivery.vehicle_plate}-${new Date().toISOString().slice(0,10)}.pdf`;
       
-      toast.success("PDF descargado exitosamente");
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.style.display = 'none';
+        link.href = url;
+        link.download = filename;
+        link.target = '_blank';
+        
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }
+      
+      toast.dismiss();
+      toast.success("PDF descargado exitosamente en Descargas");
     } catch (error) {
       console.error("Error:", error);
+      toast.dismiss();
       toast.error("Error al descargar el PDF");
     }
+  };
+
+  const handleDeleteClick = (deliveryId) => {
+    setDeleteModal({ show: true, deliveryId });
+    setDeletePassword("");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deletePassword !== "OVOSANTI2026") {
+      toast.error("Contraseña incorrecta");
+      return;
+    }
+
+    try {
+      await axios.delete(`${API_URL}/deliveries/${deleteModal.deliveryId}`);
+      
+      setDeliveries(prev => prev.filter(d => d.id !== deleteModal.deliveryId));
+      
+      setDeleteModal({ show: false, deliveryId: null });
+      setDeletePassword("");
+      
+      toast.success("Entrega eliminada exitosamente");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al eliminar la entrega");
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({ show: false, deliveryId: null });
+    setDeletePassword("");
   };
 
   const formatDate = (dateString) => {
@@ -282,24 +332,80 @@ export default function DeliveryHistory() {
                 </div>
               </div>
 
-              {delivery.is_signed && delivery.signed_pdf_path && (
-                <button
-                  onClick={() => downloadSignedPdf(delivery)}
-                  className="w-full h-12 bg-[#E8B89B] text-[#1A2E20] font-medium rounded-xl flex items-center justify-center gap-2 active:scale-[0.98]"
-                  data-testid="download-pdf-button"
-                >
-                  <Download className="w-5 h-5" />
-                  Descargar PDF Firmado
-                </button>
-              )}
+              <div className="space-y-2">
+                {delivery.is_signed && delivery.signed_pdf_path && (
+                  <button
+                    onClick={() => downloadSignedPdf(delivery)}
+                    className="w-full h-12 bg-[#E8B89B] text-[#1A2E20] font-medium rounded-xl flex items-center justify-center gap-2 active:scale-[0.98]"
+                    data-testid="download-pdf-button"
+                  >
+                    <Download className="w-5 h-5" />
+                    Descargar PDF Firmado
+                  </button>
+                )}
 
-              {!delivery.is_signed && (
-                <div className="bg-[#FFF4E6] border border-[#FFD699] rounded-lg p-3 text-sm text-[#995C00]">
-                  Entrega pendiente de firma
-                </div>
-              )}
+                {!delivery.is_signed && (
+                  <div className="bg-[#FFF4E6] border border-[#FFD699] rounded-lg p-3 text-sm text-[#995C00]">
+                    Entrega pendiente de firma
+                  </div>
+                )}
+
+                <button
+                  onClick={() => handleDeleteClick(delivery.id)}
+                  className="w-full h-12 bg-white border-2 border-red-200 text-red-600 font-medium rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] hover:bg-red-50"
+                  data-testid="delete-delivery-button"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Eliminar Entrega
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {deleteModal.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl" data-testid="delete-modal">
+            <h3 className="text-xl font-semibold text-[#142518] mb-4">Confirmar Eliminación</h3>
+            <p className="text-[#4B5563] mb-4">
+              Esta acción eliminará permanentemente la entrega y su PDF firmado.
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-2">
+                Ingrese la contraseña
+              </label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full h-12 px-4 rounded-xl bg-white border border-[#E2E8F0] focus:outline-none focus:ring-2 focus:ring-red-500 text-[#142518]"
+                data-testid="delete-password-input"
+              />
+              <p className="text-xs text-[#4B5563] mt-2">
+                Contraseña: OVOSANTI2026
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteCancel}
+                className="flex-1 h-12 bg-white border-2 border-[#E2E8F0] text-[#4B5563] font-medium rounded-xl active:scale-[0.98]"
+                data-testid="delete-cancel-button"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 h-12 bg-red-600 text-white font-medium rounded-xl active:scale-[0.98]"
+                data-testid="delete-confirm-button"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

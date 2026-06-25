@@ -287,6 +287,20 @@ async def get_delivery(delivery_id: str):
         raise HTTPException(status_code=404, detail="Entrega no encontrada")
     return delivery
 
+@api_router.delete("/deliveries/{delivery_id}")
+async def delete_delivery(delivery_id: str):
+    delivery = await db.deliveries.find_one({"id": delivery_id}, {"_id": 0})
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+    
+    result = await db.deliveries.delete_one({"id": delivery_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+    
+    return {"success": True, "message": "Entrega eliminada exitosamente"}
+
+
 @api_router.get("/files/{path:path}")
 async def download_file(path: str):
     try:

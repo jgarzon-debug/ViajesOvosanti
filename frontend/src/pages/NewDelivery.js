@@ -33,7 +33,8 @@ export default function NewDelivery() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const upperValue = value.toUpperCase();
+    setFormData(prev => ({ ...prev, [name]: upperValue }));
   };
 
   const handleFileChange = (e) => {
