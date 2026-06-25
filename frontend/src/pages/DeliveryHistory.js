@@ -83,6 +83,8 @@ export default function DeliveryHistory() {
       return;
     }
 
+    let blobUrl = null;
+    
     try {
       const loadingToast = toast.loading("Preparando descarga...");
       
@@ -95,26 +97,31 @@ export default function DeliveryHistory() {
       
       // Para iOS Safari - abrir en nueva pestaña
       if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        const fileURL = URL.createObjectURL(blob);
-        const newWindow = window.open(fileURL, '_blank');
+        blobUrl = URL.createObjectURL(blob);
+        const newWindow = window.open(blobUrl, '_blank');
         if (!newWindow) {
           toast.dismiss(loadingToast);
           toast.error("Permite ventanas emergentes para descargar");
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
           return;
         }
         toast.dismiss(loadingToast);
         toast.success("PDF abierto. Usa 'Compartir' para guardar");
+        
+        // Cleanup después de que iOS haya abierto el PDF
+        setTimeout(() => {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+        }, 3000);
         return;
       }
       
       // Para Android - método más robusto
       if (/Android/i.test(navigator.userAgent)) {
         try {
-          // Crear un enlace temporal con atributos específicos para Android
-          const link = document.createElement("a");
-          const url = window.URL.createObjectURL(blob);
+          blobUrl = window.URL.createObjectURL(blob);
           
-          link.href = url;
+          const link = document.createElement("a");
+          link.href = blobUrl;
           link.download = filename;
           link.setAttribute('type', 'application/pdf');
           link.setAttribute('target', '_blank');
@@ -122,37 +129,45 @@ export default function DeliveryHistory() {
           
           document.body.appendChild(link);
           
-          // Trigger click con un pequeño delay para Android
+          // Trigger click con delay para Android
           setTimeout(() => {
             link.click();
             
+            toast.dismiss(loadingToast);
+            toast.success("Descargando... Revisa tu carpeta Descargas", {
+              duration: 4000
+            });
+            
             // Cleanup después de un tiempo prudencial
             setTimeout(() => {
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
+              try {
+                document.body.removeChild(link);
+                if (blobUrl) window.URL.revokeObjectURL(blobUrl);
+              } catch (cleanupError) {
+                console.warn("Cleanup error:", cleanupError);
+              }
             }, 250);
           }, 50);
           
-          toast.dismiss(loadingToast);
-          toast.success("Descargando... Revisa tu carpeta Descargas", {
-            duration: 4000
-          });
           return;
         } catch (androidError) {
           console.error("Android download error:", androidError);
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          toast.dismiss(loadingToast);
         }
       }
       
       // Fallback para navegadores de escritorio y otros
+      blobUrl = window.URL.createObjectURL(blob);
+      
       if (window.navigator && window.navigator.msSaveOrOpenBlob) {
         // Para IE/Edge antiguo
         window.navigator.msSaveOrOpenBlob(blob, filename);
       } else {
         // Método estándar para Chrome, Firefox, etc.
-        const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.style.display = 'none';
-        link.href = url;
+        link.href = blobUrl;
         link.download = filename;
         
         document.body.appendChild(link);
@@ -160,7 +175,7 @@ export default function DeliveryHistory() {
         
         setTimeout(() => {
           document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
+          if (blobUrl) window.URL.revokeObjectURL(blobUrl);
         }, 100);
       }
       
@@ -168,6 +183,13 @@ export default function DeliveryHistory() {
       toast.success("PDF descargado en carpeta Descargas");
     } catch (error) {
       console.error("Error:", error);
+      if (blobUrl) {
+        try {
+          URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+          console.warn("Failed to revoke blob URL:", e);
+        }
+      }
       toast.error("Error al descargar el PDF");
     }
   };
