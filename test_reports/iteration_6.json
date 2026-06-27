@@ -1,0 +1,25 @@
+{
+  "summary": "Verified the OBSERVACIONES box bug fix in signed PDF. Created deliveries via API with/without/long notes, signed them, downloaded signed PDFs, and inspected text positions using pypdf. All scenarios behaved as specified: OBSERVACIONES box appears above RECIBIDO Y FIRMADO when notes exist, is hidden when notes empty, and is clamped to 3 wrapped lines for long text. Frontend loads correctly and shows the OBSERVACIONES input field.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "POST /api/deliveries creates delivery with notes (201)",
+    "POST /api/deliveries/{id}/upload-pdf uploads PDF",
+    "POST /api/deliveries/{id}/sign generates signed PDF including OBSERVACIONES box",
+    "GET /api/deliveries/{id}/download-pdf returns signed PDF (3313 bytes)",
+    "OBSERVACIONES text rendered with provided notes content",
+    "OBSERVACIONES box is positioned ABOVE RECIBIDO Y FIRMADO (y=239 vs y=166)",
+    "OBSERVACIONES header text 'OBSERVACIONES' present",
+    "Notes text 'Material entregado en perfecto estado...' present and word-wrapped",
+    "When notes is empty string, OBSERVACIONES box is NOT rendered (verified)",
+    "Long notes (>3 wrapped lines) are clamped to max 3 lines (4th line truncated)",
+    "RECIBIDO Y FIRMADO box, receiver name, and timestamp all still rendered correctly",
+    "Existing reference delivery 1f194ea9-... exists and is_signed=true with expected notes",
+    "Frontend home loads with OBSERVACIONES textarea input visible"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "Visual color (#1E8E3E green ~ RGB 0.118/0.557/0.243) and 2px green border are set in code but text extraction cannot verify visual styling; structural/positional verification confirmed via pypdf visitor_text coordinates. Reference delivery and three additional test deliveries were created during testing."
+}

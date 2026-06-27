@@ -166,6 +166,56 @@ async def sign_delivery(delivery_id: str, signature: SignatureData):
                 box_x = (page_width - box_width) / 2
                 box_y = 40
                 
+                notes = delivery.get("notes", "")
+                notes_box_height = 0
+                
+                # Recuadro de observaciones (si hay texto)
+                if notes and notes.strip():
+                    notes_box_height = 60
+                    notes_box_y = box_y + box_height + 10
+                    
+                    # Encabezado verde para observaciones
+                    obs_header_height = 22
+                    c.setFillColorRGB(0.118, 0.557, 0.243)
+                    c.rect(box_x, notes_box_y + notes_box_height - obs_header_height, box_width, obs_header_height, fill=True, stroke=False)
+                    
+                    c.setFillColorRGB(1, 1, 1)
+                    c.setFont("Helvetica-Bold", 11)
+                    c.drawCentredString(box_x + box_width / 2, notes_box_y + notes_box_height - 12, "OBSERVACIONES")
+                    
+                    # Borde del recuadro de observaciones
+                    c.setStrokeColorRGB(0.118, 0.557, 0.243)
+                    c.setLineWidth(2)
+                    c.rect(box_x, notes_box_y, box_width, notes_box_height, fill=False, stroke=True)
+                    
+                    # Texto de observaciones
+                    c.setFillColorRGB(0.2, 0.2, 0.2)
+                    c.setFont("Helvetica", 9)
+                    
+                    # Dividir texto en líneas que quepan
+                    max_chars_per_line = 70
+                    words = notes.split()
+                    lines = []
+                    current_line = ""
+                    
+                    for word in words:
+                        test_line = current_line + (" " if current_line else "") + word
+                        if len(test_line) <= max_chars_per_line:
+                            current_line = test_line
+                        else:
+                            if current_line:
+                                lines.append(current_line)
+                            current_line = word
+                    
+                    if current_line:
+                        lines.append(current_line)
+                    
+                    # Mostrar máximo 3 líneas
+                    y_text = notes_box_y + notes_box_height - obs_header_height - 12
+                    for idx, line in enumerate(lines[:3]):
+                        c.drawString(box_x + 10, y_text - (idx * 12), line)
+                
+                # Recuadro de firma (RECIBIDO Y FIRMADO)
                 header_height = 25
                 c.setFillColorRGB(0.118, 0.557, 0.243)
                 c.rect(box_x, box_y + box_height - header_height, box_width, header_height, fill=True, stroke=False)
